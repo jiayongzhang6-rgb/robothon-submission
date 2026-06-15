@@ -130,7 +130,7 @@ class RobotController:
     </mujoco>
     """
     
-    def __init__(self, kp: float = 15.0, ki: float = 2.0, kd: float = 0.6):
+    def __init__(self, kp: float = 25.0, ki: float = 3.0, kd: float = 0.8):
         self.model = mujoco.MjModel.from_xml_string(self.XML)
         self.data = mujoco.MjData(self.model)
         self.ik = NumericalIK(self.model, self.data)
