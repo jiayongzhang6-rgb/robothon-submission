@@ -1,0 +1,27 @@
+## 参赛信息
+
+- 参赛ID: d2f04863-5683-4e20-bd39-32f0cf339dc2
+- 赛道: Freestyle
+- 团队: Hermes Robothon Team
+
+## 当前成绩
+
+| 指标 | 分数 |
+|------|------|
+| 稳定性 | 82.39 |
+| 效率 | 77.20 |
+| 成功率 | 14.62 |
+| 综合 | 60.50 |
+
+## 项目结构
+
+- robot_controller.py - 核心控制器 (IK + PID)
+- robust_simulator.py - 容错仿真系统
+- config.json - 参赛配置
+- submit.sh - 自动提交脚本
+
+## 待优化
+
+- 提高成功率 (当前14.62%)
+- 优化IK求解器精度
+- 调整PID参数
