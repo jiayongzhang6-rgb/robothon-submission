@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-FFAI Robothon 2026 - 3自由度版本
-增加第三个关节解决运动学限制
+FFAI Robothon 2026 - 最终版本
+3DOF + 数值IK + Safe Zone补丁
 """
 
 import numpy as np
@@ -11,55 +11,93 @@ from typing import Dict, Any
 
 
 class NumericalIK:
-    """3自由度数值IK求解器"""
+    """数值逆运动学求解器 - 使用雅可比矩阵"""
     
     def __init__(self, model, data):
         self.model = model
         self.data = data
     
-    def solve(self, target: np.ndarray, max_iter: int = 200) -> np.ndarray:
-        """使用雅可比逆解求IK"""
-        q = np.array([0.0, 0.0, 0.0])
+    def solve(self, target: np.ndarray, max_iter: int = 500) -> np.ndarray:
+        """使用雅可比逆解求IK（多起点）"""
         
-        for _ in range(max_iter):
-            # 计算当前末端位置
+        # Safe Zone: 检查是否接近奇异点 [0,0,0.8]
+        origin_target = np.array([0.0, 0.0, 0.8])
+        dist_to_origin = np.linalg.norm(target - origin_target)
+        is_safe_zone = dist_to_origin < 0.18
+        base_damping = 0.001
+        # Safe Zone内使用更大的阻尼因子
+        damping_factor = base_damping * 3.0 if is_safe_zone else base_damping
+        
+        # 多起点求解
+        init_guesses = [
+            np.array([0.0, 0.0, 0.0]),
+            np.array([np.pi/4, -0.5, 0.0]),
+            np.array([-np.pi/4, -0.5, 0.0]),
+        ]
+        
+        best_q = None
+        best_error = float('inf')
+        
+        for init_q in init_guesses:
+            q = init_q.copy()
+            
+            # 每个起点使用较少的迭代次数
+            iter_per_start = max_iter // len(init_guesses)
+            for _ in range(iter_per_start):
+                # 计算当前末端位置
+                self.data.qpos[:3] = q
+                mujoco.mj_forward(self.model, self.data)
+                current_pos = self.data.xpos[-1].copy()
+                
+                # 计算误差
+                error = target - current_pos
+                error_mag = np.linalg.norm(error)
+                
+                # 检查是否收敛
+                if error_mag < 0.001:
+                    break
+                
+                # 计算雅可比矩阵
+                J = np.zeros((3, 3))
+                eps = 0.001
+                for i in range(3):
+                    q_plus = q.copy()
+                    q_plus[i] += eps
+                    self.data.qpos[:3] = q_plus
+                    mujoco.mj_forward(self.model, self.data)
+                    pos_plus = self.data.xpos[-1].copy()
+                    J[:, i] = (pos_plus - current_pos) / eps
+                
+                # 使用伪逆求解
+                JT = J.T
+                JJT = J @ JT
+                # 使用自适应阻尼因子
+                dq = JT @ np.linalg.solve(JJT + damping_factor * np.eye(3), error)
+                
+                q = q + 0.3 * dq
+                
+                # 限制角度范围
+                q[0] = np.clip(q[0], -np.pi, np.pi)
+                q[1] = np.clip(q[1], -np.pi/2, np.pi/2)
+                q[2] = np.clip(q[2], -np.pi/2, np.pi/2)
+            
+            # 评估解的质量
             self.data.qpos[:3] = q
             mujoco.mj_forward(self.model, self.data)
-            current_pos = self.data.xpos[-1].copy()
+            final_pos = self.data.xpos[-1]
+            final_error = np.linalg.norm(target - final_pos)
             
-            # 计算误差
-            error = target - current_pos
-            
-            # 计算雅可比矩阵
-            J = np.zeros((3, 3))
-            eps = 0.001
-            for i in range(3):
-                q_plus = q.copy()
-                q_plus[i] += eps
-                self.data.qpos[:3] = q_plus
-                mujoco.mj_forward(self.model, self.data)
-                pos_plus = self.data.xpos[-1].copy()
-                J[:, i] = (pos_plus - current_pos) / eps
-            
-            # 使用伪逆求解
-            JT = J.T
-            JJT = J @ JT
-            dq = JT @ np.linalg.solve(JJT + 0.0001 * np.eye(3), error)
-            
-            q = q + 0.3 * dq
-            
-            # 限制角度范围
-            q[0] = np.clip(q[0], -np.pi, np.pi)
-            q[1] = np.clip(q[1], -np.pi/2, np.pi/2)
-            q[2] = np.clip(q[2], -np.pi/2, np.pi/2)
+            if final_error < best_error:
+                best_error = final_error
+                best_q = q
         
-        return q
+        return best_q
 
 
 class RobotController:
-    """3自由度机器人控制器"""
+    """最终版本 - 3DOF + Safe Zone"""
     
-    # 3自由度模型：基座旋转 + 肩关节 + 肘关节
+    # 3DOF模型：基座高度0.4m
     XML = """
     <mujoco model="robothon_robot_3dof">
         <option timestep="0.01" gravity="0 0 -9.81"/>
@@ -119,10 +157,19 @@ class RobotController:
         # 处理角度环绕
         error = (error + np.pi) % (2 * np.pi) - np.pi
         
+        # 自适应增益
+        error_mag = np.linalg.norm(error)
+        if error_mag > 0.1:
+            kp, ki, kd = self.kp * 2, self.ki * 1.5, self.kd * 1.2
+        elif error_mag > 0.05:
+            kp, ki, kd = self.kp * 1.5, self.ki * 1.2, self.kd * 1.0
+        else:
+            kp, ki, kd = self.kp, self.ki, self.kd
+        
         self.integral = np.clip(self.integral + error * dt, -15, 15)
         derivative = (error - self.prev_error) / dt if dt > 0 else 0
         
-        action = self.kp * error + self.ki * self.integral + self.kd * derivative
+        action = kp * error + ki * self.integral + kd * derivative
         action = np.clip(action, -1, 1)
         
         self.prev_error = error
