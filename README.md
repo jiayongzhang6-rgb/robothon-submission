@@ -4,88 +4,68 @@
 **Competition:** Robothon 2026  
 **Category:** Autonomous Navigation
 
-## 🎯 Key Innovation: Predictive Recovery
+## Core Innovation: Attention-Guided Decision Visualization
 
-AEGIS v6 demonstrates **predictive failure detection** and **autonomous recovery** in a patrol scenario. The robot autonomously:
+AEGIS v6 visualizes **internal decision-making** of an autonomous navigation system. The viewer's attention is guided through five progressive phases, each revealing deeper system intelligence.
 
-1. **Patrols** a defined area with confident, efficient paths
-2. **Detects** emerging risk zones through environmental monitoring
-3. **Hesitates** when confidence drops (visible path jitter, speed reduction)
-4. **Reassesses** the situation with a full 360° scan
-5. **Recovers** by replanning a safe path around the risk
-6. **Resumes** patrol with learned adaptation
+### 60-Second Demo Narrative
 
-## 🧠 Intelligence Through Motion
+| Phase | Time | State | Focus |
+|-------|------|-------|-------|
+| 1. Baseline | 0–10s | PATROL | Normal navigation, soft-cost zones visible |
+| 2. Risk Emergence | 10–20s | ADAPT | Risk field appears, path begins deforming |
+| 3. Uncertainty | 20–30s | UNCERTAINTY | Robot hesitates, confidence drops |
+| 4. Recovery | 30–40s | RECOVERY | Full stop → re-observe → re-localize → re-plan |
+| 5. Stable | 40–60s | STABLE | System restored, metrics displayed |
 
-The system's intelligence is demonstrated through **observable behavior**, not system diagrams:
+### Visualization Design Principles
 
-| Phase | Time | Robot Behavior | What Reviewer Sees |
-|-------|------|----------------|-------------------|
-| Patrol | 0-10s | Straight, confident path | Efficient movement |
-| Deviate | 10-18s | Path bends, slight wobble | Risk avoidance |
-| Hesitate | 18-25s | Slow, jittery movement | Uncertainty |
-| Reassess | 25-35s | Full stop + 360° rotation | Active thinking |
-| Recovery | 35-50s | New confident path | Adaptive replanning |
-| Resume | 50-60s | Steady patrol | Learned behavior |
+- **2D top-down orthographic** — no 3D, no perspective distortion
+- **Fixed camera** — no movement, no zoom
+- **Event-driven behavior** — actions driven by environment, not timeline
+- **Attention-guided focus** — five-phase progressive revelation
+- **Soft-cost zones** — traversable but penalized regions
+- **Risk field** — dynamic gradient heatmap
+- **HUD minimal** — only STATE label and confidence bar
 
-## 🎥 Demo Video (60s, 1080p)
-
-The demo video shows:
-
-- **3D MuJoCo simulation** with realistic physics
-- **Risk terrain visualization** (arrow indicators showing hazard elevation)
-- **Motion trail** showing path adaptation over time
-- **Decision explanation bubbles** at key decision points
-- **Minimal HUD** (confidence bar, phase indicator, risk status)
-
-## 📊 Technical Highlights
-
-- **Deterministic seed** (seed=42) for reproducibility
-- **Event-driven architecture** with clear state transitions
-- **Risk field modeling** with spatial deformation
-- **Confidence decay** and recovery mechanisms
-- **3D visualization** in MuJoCo simulator
-
-## 🏆 Why This Wins
-
-1. **Show, Don't Tell**: Intelligence is visible through motion patterns
-2. **Dramatic Arc**: Clear narrative from patrol → crisis → recovery
-3. **Technical Depth**: Predictive failure detection is novel
-4. **Professional Polish**: 1080p, smooth 30fps, clean HUD
-
-## 📁 Submission Structure
+## Project Structure
 
 ```
 submissions/robothon-robot/
-├── demo.mp4                 # 60s HD demo video
-├── README.md               # This file
-├── registration.json       # Team registration
-└── evaluation_report.json  # Self-assessment
+├── README.md
+├── registration.json
+├── demo.mp4              # 60s 2D top-down demo (900×900, 30fps)
+├── config.yaml
+├── engine/
+│   ├── __init__.py
+│   ├── state.py          # State machine
+│   ├── event_bus.py      # Event-driven architecture
+│   ├── simulator.py      # Simulation core
+│   ├── planner.py        # Path planning with risk avoidance
+│   ├── risk_model.py     # Dynamic risk field generation
+│   └── recovery.py       # 3-phase recovery pipeline
+└── viz/
+    ├── __init__.py
+    ├── overlay.py        # HUD overlay rendering
+    ├── heatmap.py        # Risk field visualization
+    └── mujoco_renderer.py # 3D scene rendering (legacy)
 ```
 
-## 🔧 Reproducing the Demo
+## Scoring Alignment
 
-```bash
-# Install dependencies
-pip install mujoco opencv-python numpy
+| Criterion | How This Demo Addresses It |
+|-----------|---------------------------|
+| Perceived Intelligence | Risk-aware path deformation, autonomous recovery |
+| Causal Clarity | Clear event sequence: risk → hesitation → recovery |
+| Predictive Behavior | Path deforms BEFORE entering high-risk zone |
+| Recovery Completeness | Full cycle: stop → observe → localize → replan |
+| Visual Interpretability | 2D top-down, minimal HUD, attention-guided |
 
-# Run the demo
-python render_demo.py
+## Technical Details
 
-# Output: output/demo.mp4
-```
-
-## 📈 Self-Assessment
-
-| Criterion | Score | Notes |
-|-----------|-------|-------|
-| Technical Innovation | 9/10 | Predictive recovery is novel |
-| Demo Quality | 9/10 | 1080p, smooth, professional |
-| Architecture | 8/10 | Event-driven, modular |
-| Documentation | 8/10 | Clear, focused on motion |
-| **Total** | **34/40 (85%)** | Competitive score |
-
----
-
-**Contact:** jiayongzhang6-rgb  
-**Repository:** github.com/jiayongzhang6-rgb/robothon-submission
+- **Engine**: Event-driven with finite state machine
+- **Planner**: Utility-based with dynamic risk cost overlay
+- **Risk Model**: Gaussian gradient field with temporal evolution
+- **Recovery**: 3-phase pipeline (observe → localize → replan)
+- **Renderer**: Pure OpenCV 2D (no GPU dependency)
+- **Deterministic**: seed=42, fully reproducible
